@@ -41,7 +41,6 @@ public class Main {
         JButton convertButton = new JButton("Converti");
         JLabel statusLabel = new JLabel(" ", SwingConstants.CENTER);
 
-        // Sfoglia file .jasper
         browseJasperButton.addActionListener(e -> {
             JFileChooser chooser = new JFileChooser();
             chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
