@@ -1,104 +1,125 @@
+import javafx.application.Application;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.TextField;
+import javafx.scene.control.Label;
+import javafx.scene.control.Button;
+import javafx.scene.control.Alert;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
+import javafx.stage.DirectoryChooser;
+import javafx.stage.Stage;
 import net.sf.jasperreports.engine.JRException;
 import net.sf.jasperreports.engine.JasperReport;
 import net.sf.jasperreports.engine.util.JRLoader;
 import net.sf.jasperreports.engine.xml.JRXmlWriter;
 
-import javax.swing.SwingUtilities;
-import javax.swing.JFrame;
-import javax.swing.JPanel;
-import javax.swing.JButton;
-import javax.swing.JTextField;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JFileChooser;
-import javax.swing.SwingConstants;
-import java.awt.BorderLayout;
-import java.awt.GridLayout;
 import java.io.File;
 
-public class Main {
+public class Main extends Application {
 
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(Main::createAndShowGUI);
+    private TextField jasperPathField;
+    private TextField destDirField;
+    private TextField fileNameField;
+    private Label statusLabel;
+
+    @Override
+    public void start(Stage stage) {
+        stage.setTitle("Jasper → JRXML Converter");
+
+        jasperPathField = new TextField();
+        destDirField = new TextField();
+        fileNameField = new TextField("report_output");
+        statusLabel = new Label("");
+
+        Button browseJasperButton = new Button("Sfoglia...");
+        Button browseDirButton = new Button("Sfoglia...");
+        Button convertButton = new Button("Converti");
+
+        browseJasperButton.setOnAction(e -> {
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Seleziona file .jasper");
+            fileChooser.getExtensionFilters().add(
+                    new FileChooser.ExtensionFilter("File Jasper (*.jasper)", "*.jasper")
+            );
+            File selected = fileChooser.showOpenDialog(stage);
+            if (selected != null) {
+                jasperPathField.setText(selected.getAbsolutePath());
+            }
+        });
+
+        browseDirButton.setOnAction(e -> {
+            DirectoryChooser directoryChooser = new DirectoryChooser();
+            directoryChooser.setTitle("Seleziona cartella di destinazione");
+            File selectedDir = directoryChooser.showDialog(stage);
+            if (selectedDir != null) {
+                destDirField.setText(selectedDir.getAbsolutePath());
+            }
+        });
+
+        convertButton.setOnAction(e -> convertReport());
+
+        GridPane grid = new GridPane();
+        grid.setPadding(new Insets(15));
+        grid.setHgap(10);
+        grid.setVgap(10);
+
+        grid.add(new Label("File .jasper:"), 0, 0);
+        grid.add(jasperPathField, 1, 0);
+        grid.add(browseJasperButton, 2, 0);
+
+        grid.add(new Label("Cartella destinazione:"), 0, 1);
+        grid.add(destDirField, 1, 1);
+        grid.add(browseDirButton, 2, 1);
+
+        grid.add(new Label("Nome file JRXML:"), 0, 2);
+        grid.add(fileNameField, 1, 2);
+
+        VBox root = new VBox(15, statusLabel, grid, convertButton);
+        root.setPadding(new Insets(15));
+        root.setAlignment(Pos.CENTER);
+
+        root.setStyle("-fx-font-family: 'Segoe UI', sans-serif; -fx-font-size: 14px; ");
+        convertButton.setStyle("-fx-background-color: #0078D7; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 6; ");
+
+        statusLabel.setStyle("-fx-text-fill: #444;");
+
+        Scene scene = new Scene(root, 520, 260);
+        stage.setScene(scene);
+        stage.show();
     }
 
-    private static void createAndShowGUI() {
-        JFrame frame = new JFrame("Jasper → JRXML Converter");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(500, 250);
-        frame.setLayout(new BorderLayout(10, 10));
+    private void convertReport() {
+        String jasperPath = jasperPathField.getText().trim();
+        String destDir = destDirField.getText().trim();
+        String fileName = fileNameField.getText().trim();
 
-        JPanel panel = new JPanel(new GridLayout(4, 3, 5, 5));
+        if (jasperPath.isEmpty() || destDir.isEmpty() || fileName.isEmpty()) {
+            showAlert(Alert.AlertType.ERROR, "Errore", "Compila tutti i campi!");
+            return;
+        }
 
-        JTextField jasperPathField = new JTextField();
-        JButton browseJasperButton = new JButton("Scegli .jasper");
+        try {
+            JasperReport report = (JasperReport) JRLoader.loadObject(new File(jasperPath));
+            String jrxmlPath = destDir + File.separator + fileName + ".jrxml";
+            JRXmlWriter.writeReport(report, jrxmlPath, "UTF-8");
+            statusLabel.setText("✅ Conversione completata: " + jrxmlPath);
+        } catch (JRException ex) {
+            statusLabel.setText("❌ Errore: " + ex.getMessage());
+        }
+    }
 
-        JTextField destDirField = new JTextField();
-        JButton browseDirButton = new JButton("Scegli cartella");
+    private void showAlert(Alert.AlertType type, String title, String message) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
 
-        JTextField fileNameField = new JTextField("report_output");
-
-        JButton convertButton = new JButton("Converti");
-        JLabel statusLabel = new JLabel(" ", SwingConstants.CENTER);
-
-        browseJasperButton.addActionListener(e -> {
-            JFileChooser chooser = new JFileChooser();
-            chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
-            chooser.setDialogTitle("Seleziona file .jasper");
-            if (chooser.showOpenDialog(frame) == JFileChooser.APPROVE_OPTION) {
-                jasperPathField.setText(chooser.getSelectedFile().getAbsolutePath());
-            }
-        });
-
-        browseDirButton.addActionListener(e -> {
-            JFileChooser chooser = new JFileChooser();
-            chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-            chooser.setDialogTitle("Seleziona cartella di destinazione");
-            if (chooser.showOpenDialog(frame) == JFileChooser.APPROVE_OPTION) {
-                destDirField.setText(chooser.getSelectedFile().getAbsolutePath());
-            }
-        });
-
-        convertButton.addActionListener(e -> {
-            String jasperPath = jasperPathField.getText().trim();
-            String destDir = destDirField.getText().trim();
-            String fileName = fileNameField.getText().trim();
-
-            if (jasperPath.isEmpty() || destDir.isEmpty() || fileName.isEmpty()) {
-                JOptionPane.showMessageDialog(frame, "Compila tutti i campi!", "Errore", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-
-            try {
-                File jasperFile = new File(jasperPath);
-                JasperReport report = (JasperReport) JRLoader.loadObject(jasperFile);
-
-                String jrxmlPath = destDir + File.separator + fileName + ".jrxml";
-                JRXmlWriter.writeReport(report, jrxmlPath, "UTF-8");
-
-                statusLabel.setText("✅ Conversione completata: " + jrxmlPath);
-            } catch (JRException ex) {
-                statusLabel.setText("❌ Errore durante la conversione: " + ex.getMessage());
-            }
-        });
-
-        panel.add(new JLabel("File .jasper:"));
-        panel.add(jasperPathField);
-        panel.add(browseJasperButton);
-
-        panel.add(new JLabel("Cartella di destinazione:"));
-        panel.add(destDirField);
-        panel.add(browseDirButton);
-
-        panel.add(new JLabel("Nome file JRXML (senza estensione):"));
-        panel.add(fileNameField);
-        panel.add(new JLabel(""));
-
-        frame.add(panel, BorderLayout.CENTER);
-        frame.add(convertButton, BorderLayout.SOUTH);
-        frame.add(statusLabel, BorderLayout.NORTH);
-
-        frame.setLocationRelativeTo(null);
-        frame.setVisible(true);
+    public static void main(String[] args) {
+        launch();
     }
 }
